@@ -10,8 +10,9 @@
 #define LEFT_BIG 1
 #define RIGHT_BIG -1
 #define SAME_INT 2
-
+#define WORD_LEN 0
 typedef unsigned int word;
+
 
 /*
 #i f p == 256
@@ -41,15 +42,16 @@ word Prime[17] = {};
 typedef struct {
 	word* a;
 	int word_len;
+	int Prime_word_len;
 	int c;
 } bigint;
 
-bigint* Prime;
+extern bigint Prime;
 
 
-void Setting_Prime(int P);
+void Setting_Prime(int P,bigint** Prime);
 
-void bi_new(bigint** A,int word_len);
+void bi_new(bigint** A,int word_len, int P_word_len);
 void bi_delete(bigint** A);
 
 
@@ -59,7 +61,7 @@ void bi_copy(bigint *A, bigint *B);
 void bi_set_zero(bigint* A);
 void bi_set_one(bigint* A);
 void bi_show_hex(bigint* A);
-
+void bi_set_word_len(bigint* A);
 
 int bi_is_one(bigint* A);
 int bi_is_zero(bigint* A);
