@@ -8,8 +8,8 @@
 // 0xFFFFFFFF 00000001 00000000 00000000 00000000 FFFFFFFF FFFFFFFF FFFFFFFF
 #define P384 12
 // 0xFFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFFFF 00000000 00000000 FFFFFFFF
-#define P521 16
-// 0xFFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF 
+#define P521 17
+// 0x00001FF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF 
 
 typedef unsigned int word;
 
@@ -27,26 +27,37 @@ typedef struct{
   BN y;
 }Affine;
 
-typedef struct{
-  BN x;
-  BN y;
-  BN z;
-}Jacobian;
+// typedef struct{
+//   BN x;
+//   BN y;
+//   BN z;
+// }Jacobian;
 
-// void hexword2int(const char* hexword, )
-
-void BN_print_hex(const BN* data, ECC_info ECC, const char* name)
+void BN_print_hex(const BN* data, ECC_info* ECC, const char* name)
 {
   if(name != NULL)
   {
     printf("%s = ", name);
   }
   printf("0x");
-  for(int i = ECC.p - 1; i >= 0; i--)
+  for(int i = ECC->p - 1; i >= 0; i--)
   {
     printf("%08x ", data->arr[i]);
   }
   printf("\n");
+}
+
+void WordArr_zerolize(word* data, int size)
+{
+  for(int i = 0; i < size; i++)
+  {
+    data[i] = 0;
+  }
+}
+
+void BN_zerolize(BN* data, const ECC_info* ECC)
+{
+  WordArr_zerolize(data->arr, ECC->p);
 }
 
 void ECC_init(ECC_info* ECC, int p_type)
@@ -61,29 +72,29 @@ void ECC_init(ECC_info* ECC, int p_type)
 
   if (p_type == P224)
   {
-    ECC->polynomial.arr[4] = 0;
-    ECC->polynomial.arr[5] = 0;
-    ECC->polynomial.arr[6] = 1;
+    ECC->polynomial.arr[2] = 0;
+    ECC->polynomial.arr[1] = 0;
+    ECC->polynomial.arr[0] = 1;
   }
 
   else if (p_type == P256)
   {
-    ECC->polynomial.arr[1] = 1;
-    ECC->polynomial.arr[2] = 0;
-    ECC->polynomial.arr[3] = 0;
+    ECC->polynomial.arr[6] = 1;
+    ECC->polynomial.arr[5] = 0;
     ECC->polynomial.arr[4] = 0;
+    ECC->polynomial.arr[3] = 0;
   }
 
   else if (p_type == P384)
   {
-    ECC->polynomial.arr[7] -= 1;
-    ECC->polynomial.arr[9] = 0;
-    ECC->polynomial.arr[10] = 0;
+    ECC->polynomial.arr[4] -= 1;
+    ECC->polynomial.arr[2] = 0;
+    ECC->polynomial.arr[1] = 0;
   }
 
   else if (p_type == P521)
   {
-
+    ECC->polynomial.arr[16] = 0x1FF;
   }
 
   else
@@ -115,67 +126,55 @@ void hex2digit(const char hex, int* data)
   }
 }
 
-void hex2BN(const char* hexstring, BN* data, const ECC_info ECC)
+void hex2BN(const char* hexstring, BN* data, const ECC_info* ECC)
 {
-  int i = 2;
-  int j = ECC.p - 1;
+  int i = (int)strlen(hexstring) - 1;
+  int j = 0;
   int temp = 0;
+  int k = 0;
 
-  while(hexstring[i] != '\0')
+  BN_zerolize(data, ECC);
+
+  while(i >= 2)
   {
     if(hexstring[i] == ' ')
     {
-      j--;
+      j++;
+      k = 0;
+      i--;
+      continue;
     }
     
     hex2digit(hexstring[i], &temp);
-    data->arr[j] = (data->arr[j] << 4) + temp;
-
-    i++;
+    data->arr[j] = data->arr[j] + (temp << (4 * k)) ;
+    k++;
+    i--;
   }
 }
 
-void BN_init(BN* data, const ECC_info ECC)
+void BN_init(BN* data, const ECC_info* ECC)
 {
-  data->arr = (word*)malloc(ECC.p * sizeof(word));
-  for(int i = 0; i < ECC.p; i++)
+  data->arr = (word*)malloc(ECC->p * sizeof(word));
+  for(int i = 0; i < ECC->p; i++)
   {
     data->arr[i] = 0;
   }
 }
 
-void WordArr_zerolize(word* data, int size)
-{
-  for(int i = 0; i < size; i++)
-  {
-    data[i] = 0;
-  }
-}
-
-void BN_zerolize(BN* data, const ECC_info ECC)
-{
-  WordArr_zerolize(data->arr, ECC.p);
-}
-
-void BN_set(const char* hexstring, BN* data, const ECC_info ECC)
+void BN_set(const char* hexstring, BN* data, const ECC_info* ECC)
 {
   hex2BN(hexstring, data, ECC);
 }
 
-void BNF_reduction_fast(word* data, ECC_info ECC)
-{
-
-}
-
-void BNF_add(const BN src1, const BN src2, BN* dst, const ECC_info ECC)
+void BNF_add(const BN src1, const BN src2, BN* dst, const ECC_info* ECC)
 {
   BN_zerolize(dst, ECC);
   int carry_bit = 0;
   int cur_carry_bit = 0;
-  word* temp = (word*)malloc((ECC.p + 1) * sizeof(word));
-  WordArr_zerolize(temp, ECC.p + 1);
+  word* temp = (word*)malloc((ECC->p + 1) * sizeof(word));
+  WordArr_zerolize(temp, ECC->p + 1);
 
-  for(int i = 0; i < ECC.p; i++)
+  for(int i = 0; i < ECC->p; i++)
   {
     cur_carry_bit = carry_bit;
     temp[i] = src1.arr[i] + src2.arr[i] + cur_carry_bit;
@@ -195,25 +194,25 @@ void BNF_add(const BN src1, const BN src2, BN* dst, const ECC_info ECC)
     }
   }
 
-  temp[ECC.p] = carry_bit;
+  temp[ECC->p] = carry_bit;
 
   // modulo 필요
 
-  memcpy(dst->arr, temp, 4 * ECC.p);
+  memcpy(dst->arr, temp, 4 * ECC->p);
   free(temp);
 }
 
 // void BNF_complement()
 
-void BNF_sub(const BN src1, const BN src2, BN* dst, ECC_info ECC)
+void BNF_sub(const BN src1, const BN src2, BN* dst, ECC_info* ECC)
 {
   BN_zerolize(dst, ECC);
   int borrow = 0;
   int cur_borrow = 0;
-  word* temp = (word*)malloc((ECC.p + 1) * sizeof(word));
-  WordArr_zerolize(temp, ECC.p + 1);
-
-  for(int i = 0; i < ECC.p; i++)
+  word* temp = (word*)malloc((ECC->p + 1) * sizeof(word));
+  WordArr_zerolize(temp, ECC->p + 1);
+  
+  for(int i = 0; i < ECC->p; i++)
   {
     cur_borrow = borrow;
     temp[i] = src1.arr[i] - src2.arr[i] - cur_borrow;
@@ -234,51 +233,51 @@ void BNF_sub(const BN src1, const BN src2, BN* dst, ECC_info ECC)
   }
   
   // modulo 필요
-  memcpy(dst->arr, temp, 4 * ECC.p);
+  memcpy(dst->arr, temp, 4 * ECC->p);
   free(temp);
 }
 
-void BNF_mul_OS(const BN src1, const BN src2, BN* dst, const ECC_info ECC)
+void BNF_mul_OS(const BN src1, const BN src2, BN* dst, const ECC_info* ECC)
 {
   BN_zerolize(dst, ECC);
   long UV = 0;
-  word* temp = (word*)malloc(2 * ECC.p * sizeof(word));
-  WordArr_zerolize(temp, 2 * ECC.p);
+  word* temp = (word*)malloc(2 * ECC->p * sizeof(word));
+  WordArr_zerolize(temp, 2 * ECC->p);
 
-  for(int i = 0; i < ECC.p; i++)
+  for(int i = 0; i < ECC->p; i++)
   {
     UV = 0;
 
-    for(int j = 0; j < ECC.p; j++)
+    for(int j = 0; j < ECC->p; j++)
     {
-      UV = (long)temp[i + j] + (long)src1.arr[i] * (long)src2.arr[j] + (UV >> 32);
+      UV = (long)temp[i + j] + (long)src1.arr[i] * (long)src2.arr[j] + ((UV >> 32) & 0xffffffff);
       // 이유는 모르겠으나 UV >> 32로 하였을 때 ffffffff가 앞에 생겨버림.. sign extension 때문인가?
       temp[i + j] = (word) UV;
     }
 
-    temp[i + ECC.p] = (word)(UV >> 32); // 여기서 모듈러 필요할 듯 보임. (reduction)
+    temp[i + ECC->p] = (word)(UV >> 32); // 여기서 모듈러 필요할 듯 보임. (reduction)
   }
 
   // modulo 필요
 
-  memcpy(dst->arr, temp, 4 * ECC.p);
+  memcpy(dst->arr, temp, 4 * ECC->p);
   free(temp);
 }
 
-void BNF_mul_PS(const BN src1, const BN src2, BN* dst, const ECC_info ECC)
+void BNF_mul_PS(const BN src1, const BN src2, BN* dst, const ECC_info* ECC)
 {
   BN_zerolize(dst, ECC);
   long UV = 0;
   int carry_bit = 0;
   long R[2] = {0, };
-  word* temp = (word*)malloc(2 * ECC.p * sizeof(word));
-  WordArr_zerolize(temp, 2 * ECC.p);
+  word* temp = (word*)malloc(2 * ECC->p * sizeof(word));
+  WordArr_zerolize(temp, 2 * ECC->p);
 
-  for(int k = 0; k < 2 * ECC.p - 1; k++)
+  for(int k = 0; k < 2 * ECC->p - 1; k++)
   {
     for(int i = 0; i <= k; i++)
     {
-      if((i >= ECC.p) || (k - i >= ECC.p))
+      if((i >= ECC->p) || (k - i >= ECC->p))
       {
         continue;
       }
@@ -298,36 +297,36 @@ void BNF_mul_PS(const BN src1, const BN src2, BN* dst, const ECC_info ECC)
       R[1] += carry_bit;
     }
     temp[k] = (word)R[0];
-    R[0] = (R[1] << 32) ^ (R[0] >> 32);
+    R[0] = (R[1] << 32) ^ ((R[0] >> 32) & 0xffffffff);
     R[1] = 0;
     carry_bit = 0;
   }
 
-  temp[2*ECC.p - 1] = (word)R[0];
+  temp[2*ECC->p - 1] = (word)R[0];
 
-  memcpy(dst->arr, temp, 4 * ECC.p);
+  memcpy(dst->arr, temp, 4 * ECC->p);
   free(temp);
 }
 
 void BNF_mul_KO(const BN src1, const BN src2, BN* dst, const ECC_info ECC)
 {
-
+  return;
 }
 
-void BNF_square(const BN src, BN* dst, const ECC_info ECC)
+void BNF_square(const BN src, BN* dst, const ECC_info* ECC)
 {
   BN_zerolize(dst, ECC);
   long UV = 0;
   int carry_bit = 0;
   long R[2] = {0, };
-  word* temp = (word*)malloc(2 * ECC.p * sizeof(word));
-  WordArr_zerolize(temp, 2 * ECC.p);
+  word* temp = (word*)malloc(2 * ECC->p * sizeof(word));
+  WordArr_zerolize(temp, 2 * ECC->p);
 
-  for(int k = 0; k < 2 * ECC.p - 1; k++)
+  for(int k = 0; k < 2 * ECC->p - 1; k++)
   {
     for(int i = 0; i <= k - i; i++)
     {
-      if((i >= ECC.p) || (k - i >= ECC.p))
+      if((i >= ECC->p) || (k - i >= ECC->p))
       {
         continue;
       }
@@ -362,96 +361,105 @@ void BNF_square(const BN src, BN* dst, const ECC_info ECC)
     carry_bit = 0;
   }
 
-  temp[2*ECC.p - 1] = (word)R[0];
+  temp[2*ECC->p - 1] = (word)R[0];
 
-  memcpy(dst->arr, temp, 4 * ECC.p);
+  memcpy(dst->arr, temp, 4 * ECC->p);
   free(temp);
 }
 
-void BNF_square2(const BN src, BN* dst, ECC_info ECC)
+void BNF_square2(const BN src, BN* dst, ECC_info* ECC)
 {
   BN_zerolize(dst, ECC);
   long UV = 0;
   word Wtemp[2] = {0,};
   int carry_bit = 0;
-  word* temp = (word*)malloc(2*ECC.p * sizeof(word));
+  word* temp = (word*)malloc(2 * ECC->p * sizeof(word));
+  WordArr_zerolize(temp, 2 * ECC->p);
 
-  for(int i = 0; i < ECC.p; i++)
+  for(int i = 0; i < ECC->p; i++)
   {
-    UV = (long)temp[2 * i] + (long)src.arr[i] * (long)src.arr[i];
+    UV = ((long)temp[2 * i] & 0xffffffff) + ((long)src.arr[i] & 0xffffffff) * ((long)src.arr[i] & 0xffffffff);
     temp[2 * i] = (word)UV;
     Wtemp[0] = (word)(UV >> 32);
     Wtemp[1] = 0;
 
-    for(int j = i + 1; j < ECC.p; j++)
+    for(int j = i + 1; j < ECC->p; j++)
     {
-      UV = temp[i + j] + (long)src.arr[i] * (long)src.arr[j] + Wtemp[0];
+      UV = ((long)temp[i + j] & 0xffffffff) + ((long)src.arr[i] & 0xffffffff) * ((long)src.arr[j] & 0xffffffff) + Wtemp[0];
       Wtemp[0] = (word)(UV >> 32);
-      UV = (UV & 0xffffffff) + (long)src.arr[i] * (long)src.arr[j] + Wtemp[1];
+      UV = (UV & 0xffffffff) + ((long)src.arr[i] & 0xffffffff) * ((long)src.arr[j] & 0xffffffff) + ((long)Wtemp[1] & 0xffffffff);
+      temp[i + j] = (word)UV;
       Wtemp[1] = (word)(UV >> 32);
     }
 
-    UV = (long)Wtemp[0] + (long)Wtemp[1];
+    UV = ((long)Wtemp[0] & 0xffffffff) + ((long)Wtemp[1] & 0xffffffff);
     Wtemp[1] = (word)(UV >> 32);
-    UV = (long)temp[i + ECC.p] + (UV & 0xffffffff);
-    temp[i + ECC.p] = (word)UV;
-    temp[i + ECC.p + 1] = Wtemp[1] + (word)(UV >> 32);
+    UV = ((long)temp[i + ECC->p] & 0xffffffff) + (UV & 0xffffffff);
+    temp[i + ECC->p] = (word)UV;
+    temp[i + ECC->p + 1] = Wtemp[1] + (word)(UV >> 32);
   }
 
-  memcpy(dst->arr, temp, 4 * ECC.p);
+  memcpy(dst->arr, temp, 4 * ECC->p);
   free(temp);
+}
+
+void BN_FastReduction(BN* data, const ECC_info* ECC)
+{
+
+}
+
+void BN_EEA(const BN src1, const BN src2, BN* dst, const ECC_info* ECC)
+{
+  
 }
 
 void test()
 {
-  // BN* a = NULL;
-  // BN* b = NULL;
-  // a = (BN*)malloc(sizeof(BN));
-  // b = (BN*)malloc(sizeof(BN));
+  BN* a = NULL;
+  BN* b = NULL;
+  a = (BN*)malloc(sizeof(BN));
+  b = (BN*)malloc(sizeof(BN));
 
-  // ECC_info* ECC = NULL;
-  // ECC = (ECC_info*)malloc(sizeof(ECC_info));
+  ECC_info* ECC = NULL;
+  ECC = (ECC_info*)malloc(sizeof(ECC_info));
 
-  BN a;
-  BN b;
-  ECC_info ECC;
-
-  ECC_init(&ECC, P256);
+  ECC_init(ECC, P256);
 
   printf("INITIALIZE OPERAND...\n");
-  BN_init(&a, ECC);
-  BN_init(&b, ECC);
+  BN_init(a, ECC);
+  BN_init(b, ECC);
 
-  BN_print_hex(&a, ECC, "a");
-  BN_print_hex(&b, ECC, "b");
+  BN_print_hex(a, ECC, "a");
+  BN_print_hex(b, ECC, "b");
 
   printf("SET OPERAND...\n");
-  BN_set("0x00000000 00000000 00000000 00000000 00000000 00000000 00000000 ffffffff", &a, ECC);
-  BN_set("0x00000000 00000000 00000000 00000000 00000000 00000000 80000000 00000000", &b, ECC);
-  BN_print_hex(&a, ECC, "a");
-  BN_print_hex(&b, ECC, "b");
+  BN_set("0xffffffff", a, ECC);
+  BN_set("0xffffffff", b, ECC);
+  BN_print_hex(a, ECC, "a");
+  BN_print_hex(b, ECC, "b");
 
-  BN c;
-  BN_init(&c, ECC);
+  BN* c = NULL;
+  c = (BN*)malloc(sizeof(BN));
+  BN_init(c, ECC);
 
   printf("ADD TEST...\n");
-  BNF_add(a, b, &c, ECC);
-  BN_print_hex(&c, ECC, "a + b = c");
+  BNF_add(*a, *b, a, ECC);
+  BN_print_hex(c, ECC, "a + b = c");
   printf("\n");
 
   printf("SUB TEST...\n");
-  BNF_sub(a, b, &c, ECC);
-  BN_print_hex(&c, ECC, "a - b = c");
+  BNF_sub(*a, *b, c, ECC);
+  BN_print_hex(c, ECC, "a - b = c");
   printf("\n");
 
   printf("MUL TEST...\n");
   printf("OS VERSION...\n");
-  BNF_mul_OS(a, b, &c, ECC);
-  BN_print_hex(&c, ECC, "a * b = c");
+  BNF_mul_OS(*a, *b, c, ECC);
+  BN_print_hex(c, ECC, "a * b = c");
 
   printf("PS VERSION...\n");
-  BNF_mul_PS(a, b, &c, ECC);
-  BN_print_hex(&c, ECC, "a * b = c");
+  BNF_mul_PS(*a, *b, c, ECC);
+  BN_print_hex(c, ECC, "a * b = c");
 
   printf("KARATSUBA - OFMAN VERSION...\n");
   // BNF_mul_KO(a, b, &c, ECC);
@@ -460,13 +468,13 @@ void test()
 
   printf("SQUARE TEST...\n");
   printf("Classical Squaring...\n");
-  BNF_square(a, &c, ECC);
-  BN_print_hex(&c, ECC, "a^2 = c");
+  BNF_square(*a, c, ECC);
+  BN_print_hex(c, ECC, "a^2 = c");
   printf("\n");
 
   printf("Another Squaring...\n");
-  BNF_square2(a, &c, ECC);
-  BN_print_hex(&c, ECC, "a^2 = c");
+  BNF_square2(*a, c, ECC);
+  BN_print_hex(c, ECC, "a^2 = c");
   printf("\n");
 }
 
@@ -501,10 +509,7 @@ void memcpy_test()
 
 int main()
 {
-  memcpy_test();
+  // memcpy_test();
   test();
-
-  long a = 0xffffffff;
-
   return 0;
 }
