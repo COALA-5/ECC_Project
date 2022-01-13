@@ -23,15 +23,15 @@ void Setting_Prime(int P,bigint** Prime) {
 		word prime[7] = { 0xffffffff,0xffffffff,0xffffffff,
 		0xffffffff,0x00000000,0x00000000,0x00000001 };
 
-		bi_new(&Prime, 7,7);
-		bi_set(Prime, prime, 7);
+		bi_new(Prime, 7,7);
+		bi_set(*Prime, prime, 7);
 	}
 	else if (p == 384) {
 		word prime[12] = { 0xffffffff,0xffffffff,0xffffffff,
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xfffffffe,
 0xffffffff,0x00000000,0x00000000,0xffffffff };
-		bi_new(&Prime, 12,12);
-		bi_set(Prime, prime, 12);
+		bi_new(Prime, 12,12);
+		bi_set(*Prime, prime, 12);
 	}	
 }
 
@@ -87,10 +87,7 @@ void bi_show_hex(bigint* A) {
 	printf("0x");
 
 	for (int i = A->word_len - 1; i >= 0; i--) {
-
-#ifdef p == 256
 		printf("%08x", A->a[i]);
-#endif
 	}
 	printf("\n");
 
@@ -172,44 +169,62 @@ void Addition_NR(bigint* A, bigint* B, bigint** C) {
 
 	bigint* A_temp = NULL;
 	bigint* B_temp = NULL;
-	bigint* temp = NULL;
+
+	word* temp_array;
+	int temp_carry = 0;
+
+
+	temp_array = (word*)calloc(max(A->word_len, B->word_len) + 1, sizeof(word));
+
 
 	bi_copy(&A_temp, A);
 	bi_copy(&B_temp, B);
-	bi_new(&temp, max(A->word_len, B->word_len) + 1,A->Prime_word_len);
 
-	temp->a[0] = A_temp->a[0] + B_temp->a[0];
-	temp->c = temp->a[0] > A_temp->a[0] ? 0 : 1;
+	temp_array[0] = A_temp->a[0] + B_temp->a[0];
+	temp_carry = temp_array[0] > A_temp->a[0] ? 0 : 1;
 
 	for (int i = 1; i < A->Prime_word_len; i++) {
-		temp->a[i] = A_temp->a[i] + B_temp->a[i] + temp->c;
-		temp->c = temp->a[i] > A_temp->a[i] ? 0 : 1;
+		temp_array[i] = A_temp->a[i] + B_temp->a[i] + temp_carry;
+		temp_carry = temp_array[i] > A_temp->a[i] ? 0 : 1;
 	}
 
-	bi_set_word_len(temp);
+	bi_new(C, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
+	bi_set(*C, temp_array, max(A->word_len, B->word_len) + 1);
 
-	bi_copy(C, temp);
+	bi_set_word_len(*C);
 
 	bi_delete(&A_temp);
 	bi_delete(&B_temp);
-	bi_delete(&temp);
+	free(temp_array);
 }
 void Subtraction_NR(bigint* A, bigint* B, bigint** C) {
 
 	bigint* A_temp = NULL;
 	bigint* B_temp = NULL;
-	bigint* temp = NULL;
+
+	word* temp_array;
+	int temp_borrow = 0;
+
+	temp_array = (word*)calloc(max(A->word_len, B->word_len) + 1, sizeof(word));
 
 	bi_copy(&A_temp, A);
 	bi_copy(&B_temp, B);
-	bi_new(&temp, max(A->word_len, B->word_len),A->Prime_word_len);
 
-	temp->a[0] = A_temp->a[0] - B_temp->a[0];
-	temp->c = ((A_temp->a[0] < B_temp->a[0]) || (A_temp->a[0] == B_temp->a[0] == 0)) ? 1 : 0;
 
-	for (int i = 1; i < temp->word_len; i++) {
-		temp->a[i] = A_temp->a[i] - B_temp->a[i] - temp->c;
-		temp->c = ((A_temp->a[0] < B_temp->a[0]) || ((A_temp->a[0] == B_temp->a[0] == 0) && (temp->c == 1))) ? 1 : 0;
+	for (int i = 0; i < max(A->word_len, B->word_len) + 1; i++) {
+		printf("\nA[%d] = %08x     ,    B[%d] = %08x ", i, A_temp->a[i], i, B_temp->a[i]);
+		printf("\nborrow = %d", temp_borrow);
+		temp_array[i] = A_temp->a[i] - B_temp->a[i] - temp_borrow;
+		printf("\nC[%d] = %08x", i, temp_array[i]);
+		if ((A_temp->a[i] < B_temp->a[i]) || (A_temp->a[i] == B_temp->a[i] && temp_borrow == 1))
+			temp_borrow = 1;
+		else
+			temp_borrow = 0;
+		printf("\nborrow = %d", temp_borrow);
+	}
+
+	if (temp_borrow == 1) {
+		
 	}
 
 	bi_set_word_len(temp);
@@ -225,30 +240,37 @@ void Addition(bigint* A, bigint* B, bigint** C) {
 
 	bigint* A_temp = NULL;
 	bigint* B_temp = NULL;
-	bigint* temp = NULL;
+
+	word* temp_array;
+	int temp_carry = 0;
+
+
+	temp_array = (word*)calloc(max(A->word_len, B->word_len) + 1, sizeof(word));
+
 
 	bi_copy(&A_temp, A);
 	bi_copy(&B_temp, B);
-	bi_new(&temp, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
 
-	temp->a[0] = A_temp->a[0] + B_temp->a[0];
-	temp->c = temp->a[0] > A_temp->a[0] ? 0 : 1;
+	temp_array[0] = A_temp->a[0] + B_temp->a[0];
+	temp_carry = temp_array[0] > A_temp->a[0] ? 0 : 1;
 
 	for (int i = 1; i < A->Prime_word_len; i++) {
-		temp->a[i] = A_temp->a[i] + B_temp->a[i] + temp->c;
-		temp->c = temp->a[i] > A_temp->a[i] ? 0 : 1;
+		temp_array[i] = A_temp->a[i] + B_temp->a[i] + temp_carry;
+		temp_carry = temp_array[i] > A_temp->a[i] ? 0 : 1;
 	}
 
 	/*if (temp->c == 1 || (bi_compare(temp, Prime) == LEFT_BIG || bi_compare(temp, Prime) == SAME_INT))
 		Subtraction_NR(temp, Prime, &temp);*/
 
-	bi_set_word_len(temp);
 
-	bi_copy(C, temp);
+	bi_new(C, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
+	bi_set(*C, temp_array, max(A->word_len, B->word_len) + 1);
+
+	bi_set_word_len(*C);
 
 	bi_delete(&A_temp);
 	bi_delete(&B_temp);
-	bi_delete(&temp);
+	free(temp_array);
 }
 void Subtraction(bigint* A, bigint* B, bigint** C) {
 
@@ -258,14 +280,15 @@ void Subtraction(bigint* A, bigint* B, bigint** C) {
 
 	bi_copy(&A_temp, A);
 	bi_copy(&B_temp, B);
-	bi_new(&temp, max(A->word_len, B->word_len), A->Prime_word_len);
+	bi_new(&temp, max(A->word_len, B->word_len)+1, A->Prime_word_len);
 
 	temp->a[0] = A_temp->a[0] - B_temp->a[0];
-	temp->c = ((A_temp->a[0] < B_temp->a[0]) || (A_temp->a[0] == B_temp->a[0] == 0)) ? 1 : 0;
+	temp->c = (A_temp->a[0] < B_temp->a[0]) ? 1 : 0;
 
 	for (int i = 1; i < temp->word_len; i++) {
 		temp->a[i] = A_temp->a[i] - B_temp->a[i] - temp->c;
-		temp->c = ((A_temp->a[0] < B_temp->a[0]) || (A_temp->a[0] == B_temp->a[0] == 0)) ? 1 : 0;
+		if ((A_temp->a[i] < B_temp->a[i]) || (A_temp->a[i] == B_temp->a[i] && temp->c == 1))
+			temp->c = 1;
 	}
 
 
