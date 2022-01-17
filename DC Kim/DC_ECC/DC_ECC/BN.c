@@ -23,6 +23,7 @@ int BN_set_zero(BN* src, uint8_t size, int8_t sign) {
 	src->num = (uint32_t*)malloc(sizeof(uint32_t) * size);
 	src->size = size;
 	src->sign = POSITIVE;
+	//memset(src->num, 0, src->size);
 
 	uint8_t* pointer = (uint8_t*)src->num;
 

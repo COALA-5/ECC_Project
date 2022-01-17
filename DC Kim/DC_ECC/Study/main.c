@@ -1,0 +1,69 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+
+typedef struct _STUDENT_{
+	char name[32];
+	int id;
+}stu;
+
+struct _PROFILE_ {
+	struct _STUDENT_ st;
+	int num;
+};
+
+struct _PROFILE_ pro;
+
+typedef struct A {
+	int a;
+	int b;
+	int c[100];
+}TEST;
+
+void init(TEST* params) {
+	params->a = 1;
+	//(*params).a = 0;
+	params->b = 2;
+	params->c[0] = 3;
+}
+
+//void Init_1(int* a) {
+//	*a = 0;
+//	return;
+//}
+//
+//void Init_2(int a) {
+//	a = 0;
+//	return;
+//}
+
+int main() {
+	/*stu stu1 = { "DongCheon", 20172232 };
+	scanf("%s", pro.st.name);
+	printf("%s", pro.st.name);*/
+
+	//int a[5] = { 1,2,3,4,5 };
+	//int* b = a;
+
+	int a = 3;
+	int b = 4;
+	int* c = &a;
+	int* d = &b;
+	c = d;
+
+	printf("%d\n", c);
+	printf("%d\n", d);
+	printf("%d\n", *c);
+	printf("%d\n", *d);
+
+	//¡÷º“≥¢∏Æ ø¨ªÍ¿∫ æ»µ≈ ¥Ÿ∏∏ «“¥Á∏∏ µ≈
+
+
+	/*int a = 10;
+
+	TEST alice_params;
+	printf("%d\n", sizeof(alice_params));
+	printf("%d\n", sizeof(&a));
+
+	init(&alice_params);
+	printf("%d %d %d\n", alice_params.a, alice_params.b, alice_params.c[0]);*/
+}
