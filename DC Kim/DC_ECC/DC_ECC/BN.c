@@ -18,6 +18,7 @@ int BN_set_random(BN* src, uint8_t size, int8_t sign)
 	return ret;
 }
 
+/*
 int BN_set_zero(BN* src, uint8_t size, int8_t sign) {
 
 	src->num = (uint32_t*)malloc(sizeof(uint32_t) * size);
@@ -33,6 +34,7 @@ int BN_set_zero(BN* src, uint8_t size, int8_t sign) {
 	}
 
 }
+*/
 
 int BN_Free(BN* src)
 {
@@ -48,7 +50,6 @@ int BN_Free(BN* src)
 }
 
 
-
 int BN_print(BN* src)
 {
 	assert(src->num != NULL);
@@ -57,4 +58,11 @@ int BN_print(BN* src)
 		printf("%08X ", src->num[cnt_i]);
 	}
 	printf("\n");
+}
+
+int BN_ADD(BN* src1, BN* src2)
+{
+	assert(src->num != NULL);
+	
+
 }

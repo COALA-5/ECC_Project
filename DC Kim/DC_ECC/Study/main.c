@@ -50,10 +50,10 @@ int main() {
 	int* d = &b;
 	c = d;
 
-	printf("%d\n", c);
-	printf("%d\n", d);
-	printf("%d\n", *c);
-	printf("%d\n", *d);
+	printf("%d\n", c); //a의주소
+	printf("%d\n", d); //a주소
+	printf("%d\n", *c); //4
+	printf("%d\n", *d); //4
 
 	//주소끼리 연산은 안돼 다만 할당만 돼
 
