@@ -56,7 +56,7 @@ void bi_delete(bigint** A);
 
 
 
-void bi_set(bigint *A, word* input,int input_size);
+void bi_set(bigint **A, word* input,int input_size,int P_word_len);
 void bi_copy(bigint **A, bigint *B);
 void bi_set_zero(bigint* A);
 void bi_set_one(bigint* A);

@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include "bigint.h"
+#include <intrin.h>
 
 
-int main() {
-
+void toy1() {
 	bigint* Prime = NULL;
 
-	Setting_Prime(256,&Prime);
+	Setting_Prime(256, &Prime);
 
 	bigint* A = NULL;
 	bigint* B = NULL;
@@ -15,12 +15,12 @@ int main() {
 	word Input_array_2[4] = { 0xffffffff,0,0,0xffffffff };
 
 
-	bi_new(&A, 4,Prime->word_len);
-	bi_new(&B, 4,Prime->word_len);
+	//bi_new(&A, 4,Prime->word_len);
+	//bi_new(&B, 4,Prime->word_len);
 
 
-	bi_set(A, Input_array,4);
-	bi_set(B, Input_array_2, 4);
+	bi_set(&A, Input_array, 4, Prime->word_len);
+	bi_set(&B, Input_array_2, 4, Prime->word_len);
 
 	//R_Shift_num(B, 32);
 
@@ -34,7 +34,7 @@ int main() {
 	//word pp = 0xffffffff;
 	//printf("\n%x",(qq - pp));
 
-	Subtraction_NR(B,A, &A);
+	Subtraction_NR(B, A, &A);
 
 	printf("\nC = ");
 	bi_show_hex(A);
@@ -45,7 +45,20 @@ int main() {
 	bi_delete(&A);
 	bi_delete(&B);
 	bi_delete(&C);
+}
 
+
+int main() {
+
+	unsigned long long cycles1, cycles2;
+	cycles1 = __rdtsc();
+	toy1();
+	cycles2 = __rdtsc();
+
+
+
+
+	printf("\nclocks : %10lld\n", cycles2 - cycles1);
 	return 0;
 
 }
