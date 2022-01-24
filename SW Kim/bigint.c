@@ -11,27 +11,31 @@ void Setting_Prime(int P,bigint** Prime) {
 		word prime[8] = { 0xffffffff, 0x00000001, 0x00000000,
 					0x00000000, 0x00000000, 0xffffffff,
 					0xffffffff, 0xffffffff };
-		*Prime = (bigint*)malloc(sizeof(bigint));
-		//(*A)->a = (word*)malloc(sizeof(word) * WORD_LEN);
-		(*Prime)->a = (word*)calloc(8, sizeof(word));
-		(*Prime)->word_len = 8;
-		(*Prime)->Prime_word_len = 8;
-		(*Prime)->c = 0;
-		bi_set(*Prime, prime, 8);
+
+		bi_set(Prime, prime, 8, 8);
+
+
+		//*Prime = (bigint*)malloc(sizeof(bigint));
+		////(*A)->a = (word*)malloc(sizeof(word) * WORD_LEN);
+		//(*Prime)->a = (word*)calloc(8, sizeof(word));
+		//(*Prime)->word_len = 8;
+		//(*Prime)->Prime_word_len = 8;
+		//(*Prime)->c = 0;
+		//bi_set(*Prime, prime, 8);
 	}
 	else if (p == 224) {
 		word prime[7] = { 0xffffffff,0xffffffff,0xffffffff,
 		0xffffffff,0x00000000,0x00000000,0x00000001 };
 
-		bi_new(Prime, 7,7);
-		bi_set(*Prime, prime, 7);
+		//bi_new(Prime, 7,7);
+		bi_set(Prime, prime, 7,7);
 	}
 	else if (p == 384) {
 		word prime[12] = { 0xffffffff,0xffffffff,0xffffffff,
 0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xfffffffe,
 0xffffffff,0x00000000,0x00000000,0xffffffff };
-		bi_new(Prime, 12,12);
-		bi_set(*Prime, prime, 12);
+		//bi_new(Prime, 12,12);
+		bi_set(Prime, prime, 12,12);
 	}	
 }
 
@@ -54,17 +58,19 @@ void bi_delete(bigint** A) {
 
 	*A = NULL;
 }
-void bi_set(bigint* A, word* input, int input_size) {
+void bi_set(bigint** A, word* input, int input_size,int Prime_word_len) {
 
-	for (int i =0 ; i < A->Prime_word_len; i++) {
+	bi_new(A, input_size, Prime_word_len);
+
+	for (int i =0 ; i < (*A)->Prime_word_len; i++) {
 		if (i > input_size-1) {
-			A->a[i] = 0;
+			(*A)->a[i] = 0;
 		}
 		else {
-			A->a[i] = input[input_size - (i + 1)];
+			(*A)->a[i] = input[input_size - (i + 1)];
 		}
 	}
-	A->c = 0;
+	(*A)->c = 0;
 }
 void bi_copy(bigint** A, bigint* B) {
 	if ((*A) == NULL)
@@ -188,8 +194,8 @@ void Addition_NR(bigint* A, bigint* B, bigint** C) {
 		temp_carry = temp_array[i] > A_temp->a[i] ? 0 : 1;
 	}
 
-	bi_new(C, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
-	bi_set(*C, temp_array, max(A->word_len, B->word_len) + 1);
+	//bi_new(C, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
+	bi_set(C, temp_array, max(A->word_len, B->word_len) + 1,A->Prime_word_len);
 
 	bi_set_word_len(*C);
 
@@ -263,8 +269,8 @@ void Addition(bigint* A, bigint* B, bigint** C) {
 		Subtraction_NR(temp, Prime, &temp);*/
 
 
-	bi_new(C, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
-	bi_set(*C, temp_array, max(A->word_len, B->word_len) + 1);
+	//bi_new(C, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
+	bi_set(C, temp_array, max(A->word_len, B->word_len) + 1, A->Prime_word_len);
 
 	bi_set_word_len(*C);
 
