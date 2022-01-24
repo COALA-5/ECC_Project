@@ -12,7 +12,7 @@ int BN_set_random(BN* src, uint8_t size, int8_t sign)
 
 	for (int cnt_i = 0; cnt_i < size * sizeof(uint32_t); cnt_i++)
 	{
-		pointer[cnt_i] = rand();
+		pointer[cnt_i] = rand() & 0xff;
 	}
 
 	return ret;
@@ -64,14 +64,30 @@ int BN_ADD(BN* dst, BN* src1, BN* src2)
 	int src_size1 = src1->size;
 	//int src_size2 = src2->size;
 	int dst_size = dst->size;
+	unsigned int carry = 0;
 	printf("\nsrc_size1 = %d		dst_size = %d \n", src_size1, dst_size);
 
 	printf("\n[src1 + src2] = ");
 
-	for (int cnt_i = 0; cnt_i < src_size1; cnt_i++)
+	
+	/*
+	dst->num[dst_size - 1] = src1->num[src_size1-1] + src2->num[src_size1-1];
+	if (dst->num[dst_size - 1] < src1->num[src_size1 - 1])
+		carry = 1;
+	printf("%08x ", dst->num[dst_size - 1]);
+	for (int cnt_i = src_size1 - 2, j =dst_size - 2; cnt_i >= 0; cnt_i--, j--)
 	{
-		dst->num[cnt_i] = src1->num[cnt_i] + src2->num[cnt_i];
-		printf("%08x ", dst->num[cnt_i]);
+		dst->num[j] = src1->num[cnt_i] + src2->num[cnt_i] + carry;
+		if (dst->num[j] < src1->num[cnt_i])
+			carry = 1;
+		else
+			carry = 0;
+		printf("%08x ", dst->num[j]);
 	}
+	printf("\n");
+	dst->num[0] = carry;
+	for (int i = 0; i < dst->size; i++)
+		printf("%08X ", dst->num[i]);
+	*/
 	printf("\n");
 }

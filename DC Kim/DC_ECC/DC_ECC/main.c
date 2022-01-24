@@ -1,4 +1,6 @@
 #include "BN.h"
+#include <time.h>
+#include <stdlib.h>
 #define SIZE	4
 
 int main() {
@@ -7,6 +9,7 @@ int main() {
 	BN src2;
 	BN dst;
 
+	srand(time(NULL));
 	BN_set_random(&src1, SIZE, POSITIVE);
 	BN_set_random(&src2, SIZE, POSITIVE);
 

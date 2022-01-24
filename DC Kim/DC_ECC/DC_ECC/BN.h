@@ -1,12 +1,12 @@
 #pragma once
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
 #include <time.h>
 #include <string.h>
 #include <memory.h>
 #include <assert.h>
-
 #define SUCCESS  1
 #define FAIL  0
 #define POSITIVE 1
