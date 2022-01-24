@@ -1,28 +1,31 @@
 #include "BN.h"
+#define SIZE	4
 
 int main() {
 
 	BN src1;
 	BN src2;
+	BN dst;
 
-	//src¿¡ ·£´ý°ª ÀÔ·Â
-	BN_set_random(&src1, 4, POSITIVE);
-	BN_set_random(&src2, 4, POSITIVE);
+	BN_set_random(&src1, SIZE, POSITIVE);
+	BN_set_random(&src2, SIZE, POSITIVE);
 
-	//src Ãâ·Â
-	printf("[src1 : ]");
+	printf("[src1] : \t");
 	BN_print(&src1);
-	printf("[src2 : ]");
+	printf("[src2] : \t");
 	BN_print(&src2);
 
-	//src ¸Þ¸ð¸® ¹Ý³³
+	BN_set_zero(&dst, SIZE + 1 , POSITIVE);
+	
+	printf("[dst_init] : \t");
+	BN_print(&dst);
+	BN_ADD(&dst, &src1, &src2);
+
+
 	BN_Free(&src1);
 	BN_Free(&src2);
 
-	//src³¢¸® µ¡¼À
-	BN_ADD(&a, &b);
 
 	return 0;
-	
 
 }

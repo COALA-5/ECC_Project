@@ -23,4 +23,5 @@ int BN_set_random(BN* src, uint8_t size, int8_t sign);
 //int BN_set_zero(BN* src, uint8_t size);
 int BN_Free(BN* src);
 int BN_print(BN* src);
-int BN_ADD(BN* src1, BN* src2);
+int BN_set_zero(BN* src, uint8_t size, int8_t sign);
+int BN_ADD(BN* dst, BN* src1, BN* src2);
