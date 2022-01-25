@@ -10,7 +10,7 @@ int main() {
 	BN src1_rev;
 	BN src2_rev;
 	BN dst;
-	BN dst2;
+	//BN dst2;
 
 	//srand(time(NULL));
 
@@ -26,7 +26,7 @@ int main() {
 		BN_print(&src2);
 
 		BN_set_zero(&dst, SIZE + 1, POSITIVE);
-		BN_set_zero(&dst2, SIZE + 1, POSITIVE);
+		//BN_set_zero(&dst2, SIZE + 1, POSITIVE);
 
 		printf("[dst_init]\t: \t");
 		BN_print(&dst);
@@ -47,9 +47,9 @@ int main() {
 
 		BN_SUB(&dst, &src1_rev, &src2_rev);
 		BN_print(&dst);
-		printf("[Reverse SUB]\t: \t");
-		BN_reverse(&dst2, &dst);
-		BN_print(&dst2);
+		//printf("[Reverse SUB]\t: \t");
+		//BN_reverse(&dst2, &dst);
+		//BN_print(&dst2);
 
 
 		BN_Free(&src1);

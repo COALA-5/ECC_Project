@@ -52,7 +52,7 @@ int BN_print(BN* src)
 	assert(src->num != NULL);
 	for (int cnt_i = 0; cnt_i < src->size; cnt_i++)
 	{
-		printf("%08X", src->num[cnt_i]);
+		printf("%08X ", src->num[cnt_i]);
 	}
 	printf("\n");
 }
@@ -70,7 +70,7 @@ int BN_ADD(BN* dst, BN* src1, BN* src2)
 	int src_size2 = src2->size;
 	int dst_size = dst->size;
 	int carry = 0;
-	printf("\nsrc_size1 = %d		src_size1 = %d		dst_size = %d \n", src_size1, src_size2, dst_size);
+	printf("\nsrc_size1 = %d		src_size2 = %d		dst_size = %d \n", src_size1, src_size2, dst_size);
 	printf("\n[src1 + src2] = ");
 
 	dst->num[0] = src1->num[0] + src2->num[0];
@@ -98,7 +98,7 @@ int BN_SUB(BN* dst, BN* src1, BN* src2)
 	int src_size2 = src2->size;
 	int dst_size = dst->size;
 	int borrow = 0;
-	printf("\nsrc_size1 = %d		src_size1 = %d		dst_size = %d \n", src_size1, src_size2, dst_size);
+	printf("\nsrc_size1 = %d		src_size2 = %d		dst_size = %d \n", src_size1, src_size2, dst_size);
 	printf("\n[src1 - src2] = ");
 
 	dst->num[0] = src1->num[0] - src2->num[0];
@@ -114,7 +114,8 @@ int BN_SUB(BN* dst, BN* src1, BN* src2)
 
 		if (src1->num[cnt_i] < src2->num[cnt_i]) {
 			borrow = 1;
-		}else if(src1->num[cnt_i] = src2->num[cnt_i] && borrow == 1) {
+		}
+		else if(src1->num[cnt_i] = src2->num[cnt_i] && borrow == 1) {
 			borrow = 1;
 		}
 
