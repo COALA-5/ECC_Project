@@ -26,3 +26,4 @@ int BN_print(BN* src);
 int BN_set_zero(BN* src, uint8_t size, int8_t sign);
 int BN_reverse(BN* dst, BN* src);
 int BN_ADD(BN* dst, BN* src1, BN* src2);
+int BN_SUB(BN* dst, BN* src1, BN* src2);
