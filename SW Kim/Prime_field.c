@@ -84,9 +84,58 @@ S32 PF_Split(PF *A, U32* X, U32 len) {
 	return 0;
 }
 
+S32 bn_SHR(U32* A,U32* B, U32 Len, U32 Num) {
+
+	U32 i = 0;
+	U32 ret;
+
+	ret = B[i] << (BYTE * 8 - Num);
+
+	for (; i < Len - 1; i++) {
+		A[i] = (B[i] >> Num) ^ (B[i + 1] << (BYTE * 8 - Num));
+	}
+	A[i] = B[i] >> Num;
+
+	return ret;
+}
+
+S32 bn_SHL(U32* A, U32* B, U32 Len, U32 Num) {
+
+	U32 i = Len -1;
+	U32 ret;
+
+	ret = B[i] >> (BYTE * 8 - Num);
+
+	for (; i !=0; i--) {
+		A[i] = (B[i] << Len) ^ (B[i - 1] >> (BYTE * 8 - Num));
+	}
+	A[i] = B[i] << Num;
+
+	return ret;
+}
+
+S32 PF_SHR(PF* A, U32 Num) {
+
+	if (A->len == 0 && A->data[0] == 0) {
+		return 0;
+	}
+
+	bn_SHR(A->data, A->data, A->len, Num);
+	CLR_UPPER_ZERO(*A);
+
+}
+
+S32 PF_SHL(PF* A, U32 Num) {
+
+	bn_SHL(A->data, A->data, A->len, Num);
+	A->len = A->len + Num;
+	CLR_UPPER_ZERO(*A);
+}
+
 /*
 	Operation Function
 */
+
 S32 ADD_abs(PF* A, PF* B, PF* C)
 {
 	U32 carry,tmp;
@@ -122,7 +171,8 @@ S32 ADD_abs(PF* A, PF* B, PF* C)
 			C_data[i] = A_data[i];
 	}
 	C->len = i;
-	return 0;
+
+	return carry;
 }
 
 S32 SUB_abs(PF* A, PF* B, PF* C)
@@ -162,63 +212,65 @@ S32 SUB_abs(PF* A, PF* B, PF* C)
 		memcpy((char*)&(C_data[i]), (char*)&(A_data[i]), sizeof(U32) * (A_len - i));
 	
 	C->len = A->len;
-	return 0;
+	return borrow;
 }
 
 S32 ADD(PF* A, PF* B, PF* C)
 {
-	S32 sign;
+	int carry = 0;
+	U32 sign;
 	sign = A->sign * B->sign;
 
 	if (sign >= 0) {
 		if (A->len >= B->len) {
-			ADD_abs(A, B, C);
+			carry = ADD_abs(A, B, C);
 			C->sign = A->sign;
 		}
 		else {
-			ADD_abs(B, A, C);
+			carry = ADD_abs(B, A, C);
 			C->sign = B->sign;
 		}
 	}
 	else {
 		if ((sign = PF_abs_compare(A, B)) >= 0) {
-			SUB_abs(A, B, C);
+			carry = SUB_abs(A, B, C);
 			C->sign = A->sign;
 		}
 		else if (sign < 0) {
-			SUB_abs(B, A, C);
+			carry = SUB_abs(B, A, C);
 			C->sign = B->sign;
 		}
 	}
 
-	return 0;
+	return carry;
 }
 
 S32 SUB(PF* A, PF* B, PF* C)
 {
+	U32 borrow = 0;
 	S32 sign;
 
 	sign = A->sign * B->sign;
 
 	if (sign <= 0) {
 		if (A->len >= B->len)
-			ADD_abs(A, B, C);
+			borrow = ADD_abs(A, B, C);
 		else
-			ADD_abs(B, A, C);
+			borrow = ADD_abs(B, A, C);
 		C->sign = (A->sign != 0) ? A->sign : B->sign;
 	}
 	else {
 		if (PF_abs_compare(A, B) >= 0) {
-			SUB_abs(A, B, C);
+			borrow = SUB_abs(A, B, C);
 			C->sign = A->sign;
 		}
 		else {
-			SUB_abs(B, A, C);
+			borrow = SUB_abs(B, A, C);
 			C->sign = -B->sign;
 		}
 	}
 	CLR_UPPER_ZERO(*C)
-	return 0;
+	return borrow;
 }
 
 S32 MUL_AB(U32 A, U32 B, U32* C, U32* D)
@@ -385,7 +437,7 @@ S32 MUL(PF* A, PF* B, PF* C) {
 	}
 	else {
 		MUL_Kara(A, B, C);
-		C->sign = (A->sign ^ B->sign == 0) ? SIGN_POSITIVE : SIGN_NEGATIVE;
+		C->sign = ((A->sign ^ B->sign) == 0) ? SIGN_POSITIVE : SIGN_NEGATIVE;
 	}
 
 	return 0;
@@ -467,9 +519,109 @@ S32 SQR(PF A, PF* C) {
 
 }
 
+S32 Binary_Inv(PF* A, PF* B, PF* Prime) {
+
+	PF U, V;
+	U32 U_data[MAX_ARR_LEN] = { 0, };
+	U32 V_data[MAX_ARR_LEN] = { 0, };
+	PF_INIT(U, U_data, A->sign);
+	PF_INIT(V, V_data, SIGN_POSITIVE);
+	PF_copy(A, &U);
+	PF_copy(Prime, &V);
+
+	PF X_1, X_2;
+	U32 X_1_data[MAX_ARR_LEN] = { 0, };
+	U32 X_2_data[MAX_ARR_LEN] = { 0, };
+	PF_INIT(X_1, X_1_data, SIGN_POSITIVE);
+	PF_INIT(X_2, X_2_data, SIGN_ZERO);
+	X_1.len = 1;
+	X_1.data[0] = 1;
+
+	printf("\nU = ");
+	PF_Print(U);
+	printf("\nV = ");
+	PF_Print(V);
+
+	printf("\nX_1 = ");
+	PF_Print(X_1);
+	printf("\nX_2 = ");
+	PF_Print(X_2);
+
+	while (!PF_IS_ZERO(U) && !PF_IS_ZERO(V)) {
+
+		while (isEven(U.data)) {
+
+			PF_SHR(&U, 1);
+
+			printf("\nU = ");
+			PF_Print(U);
+
+			if (isEven(X_1.data)) {
+
+				PF_SHR(&X_1, 1);
+
+				printf("\nX_1 = ");
+				PF_Print(X_1);
+
+			}
+			else {
+
+				ADD(&X_1, Prime, &X_1);
+				
+				printf("\nX_1 = ");
+				PF_Print(X_1);
+				
+				PF_SHR(&X_1, 1);
+
+				printf("\nX_1 = ");
+				PF_Print(X_1);
+
+			}
+		}
+		while (isOdd(V.data)) {
+
+			PF_SHR(&V, 1);
+
+			printf("\nV = ");
+			PF_Print(V);
+
+			if (isEven(X_2.data)) {
+
+				PF_SHR(&X_2, 1);
+
+			}
+			else {
+				ADD(&X_2, Prime, &X_2);
+				PF_SHR(&X_2, 1);
+			}
+		}
+		if (!(PF_compare(&U, &V) < 0)) {
+			SUB(&U, &V, &U);
+			SUB(&X_1, &X_2, &X_1);
+		}
+		else {
+			SUB(&V, &U, &V);
+			SUB(&X_2, &X_1, &X_2);
+		}
+	}
+	if (PF_IS_ONE(U)) {
+		PF_256_MOD(&X_1);
+		PF_copy(&X_1,B);
+		return 0;
+	}
+	else {
+		PF_256_MOD(&X_2);
+		printf("\nX_2 = ");
+		PF_Print(X_2);
+		PF_copy(&X_2,B);
+		return 0;
+	}
+}
+
 /*
 	Prime Field Operation Function
 */
+
 S32 PF_ADD(PF* A, PF* B, PF* Prime, PF* C)
 {
 	ADD(A, B, C);
@@ -494,6 +646,7 @@ S32 PF_MUL(PF* A, PF* B, PF* Prime, PF* C) {
 	MUL(A, B, C);
 
 	//reduction function
+	PF_256_MOD(C);
 
 	return 0;
 }
@@ -506,28 +659,87 @@ S32 PF_MOD(PF* A, PF* Prime) {
 
 /*
 
+	Fast Reduction Function
 
 */
 
+static U32 P_256[5][8] = {
+	{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000,
+	 0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF},
+	{0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000001,
+	 0x00000000, 0x00000000, 0x00000002, 0xFFFFFFFE},
+	{0xFFFFFFFD, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000002,
+	 0x00000000, 0x00000000, 0x00000003, 0xFFFFFFFD},
+	{0xFFFFFFFC, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000003,
+	 0x00000000, 0x00000000, 0x00000004, 0xFFFFFFFC},
+	{0xFFFFFFFB, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000004,
+	 0x00000000, 0x00000000, 0x00000005, 0xFFFFFFFB}
+};
+
 S32 PF_256_MOD(PF* A) {
+
+	PF P;
+	U32 P_data = { 0, };
+	PF_INIT(P, P_data, SIGN_POSITIVE);
+	P.len = 8;
 
 	U32 A_len;
 	U32* A_data;
+	int carry = 0;
 
 	A_len = A->len;
 	A_data = A->data;
 
 	PF S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_8,S_9;
-	U32 S_1_data[8] = { A_data[7],A_data[6],A_data[5],A_data[4],A_data[3],A_data[2],A_data[1],A_data[0] };
-	U32 S_2_data[8] = { A_data[15],A_data[14],A_data[13],A_data[12],A_data[11],0,0,0 };
-	U32 S_3_data[8] = { 0,A_data[15],A_data[14],A_data[13],A_data[12],0,0,0 };
-	U32 S_4_data[8] = { A_data[15],A_data[14],0,0,0,A_data[10],A_data[9],A_data[8] };
-	U32 S_5_data[8] = { A_data[8],A_data[13],A_data[15],A_data[14],A_data[13],A_data[11],A_data[10],A_data[9] };
-	U32 S_6_data[8] = { A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7] };
-	U32 S_7_data[8] = { A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7] };
-	U32 S_8_data[8] = { A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7] };
-	U32 S_9_data[8] = { A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7],A_data[7] };
+
+	U32 S_1_data[8] = { A_data[0],A_data[1],A_data[2],A_data[3],A_data[4],A_data[5],A_data[6],A_data[7] };
+	U32 S_2_data[8] = { 0,0,0,A_data[11],A_data[12],A_data[13],A_data[14],A_data[15] };
+	U32 S_3_data[8] = { 0,0,0,A_data[12],A_data[13],A_data[14],A_data[15],0 };
+	U32 S_4_data[8] = { A_data[8],A_data[9],A_data[10],0,0,0,A_data[14],A_data[15] };
+	U32 S_5_data[8] = { A_data[9],A_data[10],A_data[11],A_data[13],A_data[14],A_data[15],A_data[13],A_data[8] };
+	U32 S_6_data[8] = { A_data[11],A_data[12],A_data[13],0,0,0,A_data[8],A_data[10] };
+	U32 S_7_data[8] = { A_data[12],A_data[13],A_data[14],A_data[15],0,0,A_data[9],A_data[11] };
+	U32 S_8_data[8] = { A_data[13],A_data[14],A_data[15],A_data[8],A_data[9],A_data[10],0,A_data[12] };
+	U32 S_9_data[8] = { A_data[14],A_data[15],0,A_data[9],A_data[10],A_data[11],0,A_data[13] };
+
+	PF_INIT(S_1, S_1_data, SIGN_POSITIVE); S_1.len = 8;
+	PF_INIT(S_2, S_2_data, SIGN_POSITIVE); S_2.len = 8; 
+	PF_INIT(S_3, S_3_data, SIGN_POSITIVE); S_3.len = 7; 
+	PF_INIT(S_4, S_4_data, SIGN_POSITIVE); S_4.len = 8;
+	PF_INIT(S_5, S_5_data, SIGN_POSITIVE); S_5.len = 8;
+	PF_INIT(S_6, S_6_data, SIGN_POSITIVE); S_6.len = 8;
+	PF_INIT(S_7, S_7_data, SIGN_POSITIVE); S_7.len = 8;
+	PF_INIT(S_8, S_8_data, SIGN_POSITIVE); S_8.len = 8;
+	PF_INIT(S_9, S_9_data, SIGN_POSITIVE); S_9.len = 8;
+
+	carry += ADD(&S_2, &S_2, A);
+	carry += ADD(A, &S_1, A);
+	carry += ADD(A, &S_3, A);
+	carry += ADD(A, &S_3, A);
+	carry += ADD(A, &S_4, A);
+	carry += ADD(A, &S_5, A);
+
+	carry -= SUB(A, &S_6, A);
+	carry -= SUB(A, &S_7, A);
+	carry -= SUB(A, &S_8, A);
+	carry -= SUB(A, &S_9, A);
+
+	if (carry > 0) {
+
+		P.data = P_256[carry-1];
+		SUB(A, &P, A);
+
+	}
+	else if (carry < 0 && A->sign == SIGN_NEGATIVE) {
+
+		P.data = P_256[~carry];
+		ADD(A, &P, A);
+
+	}
 
 
+	CLR_UPPER_ZERO(*A);
+
+	return 0;
 
 }

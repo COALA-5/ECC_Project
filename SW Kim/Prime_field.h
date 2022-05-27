@@ -26,8 +26,10 @@ typedef struct _PF {
 #define SIGN_NEGATIVE -1
 
 #define MAX(x,y) (((x)>=(y))? (x):(y))
+#define isEven(A)		( ( (A)[0]&1 )==0 )
+#define isOdd(A)		( ( (A)[0]&1 )==1 )
 #define PF_IS_ZERO(x) ((x).len == 0 || (((x).len <= 1) && ((x).data[0] == 0)))
-#define PF_IS_ONE(x)  ((x).len == 1&& (x).data[0]==1)
+#define PF_IS_ONE(x)  ((x).len == 1 && (x).data[0]==1)
 #define MAKE_ZERO(/* PF */x) { (x).sign = SIGN_ZERO;(x).len = 0;(x).data[0]= 0; }
 #define MAKE_ONE( /* PF */x) { (x).sign = SIGN_POSITIVE;(x).len = 1;(x).data[0]= 1; }
 #define BIT_LW(/* (U32) */x) ((x) & BIT_LOW)
@@ -46,7 +48,9 @@ typedef struct _PF {
 		if(*(pt--)) break; \
 }
 
-
+// bn_function
+S32 bn_SHR(U32* A,U32* B, U32 Len, U32 Num);
+S32 bn_SHL(U32* A, U32* B, U32 Len, U32 Num);
 
 // print function
 S32 PF_Print(PF A);
@@ -56,6 +60,8 @@ S32 PF_copy(PF* A, PF* B);
 S32 PF_abs_compare(PF* A, PF* B);
 S32 PF_compare(PF* A, PF* B);
 S32 PF_Split(PF* A, U32* X, U32 len);
+S32 PF_SHR(PF* A, U32 Num);
+S32 PF_SHL(PF* A, U32 Num);
 
 // operation function
 S32 ADD_abs(PF* A, PF* B, PF* C);
@@ -68,6 +74,7 @@ S32 MUL(PF* A, PF* B, PF* C);
 S32 MUL_abs(PF* A, PF* B, PF* C);
 S32 SQR_abs(PF A, PF* C);
 S32 SQR(PF A, PF* C);
+S32 Binary_Inv(PF* A, PF* B, PF* Prime);
 
 
 // prime field operation function
