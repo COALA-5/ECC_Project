@@ -12,14 +12,18 @@ typedef struct _PF {
 	S32 len;
 }PF;
 
+#define TRUE 1
+#define FALSE 0
+
 #define MAX_BUF_LEN (500+1)
 #define MAX_ARR_LEN 100
 #define BYTE 4
+#define Bits 32
 #define BIT_HIGH 0xffff0000
 #define BIT_LOW 0x0000ffff
 #define HIGHER_LSB_ONE 0x00010000
 #define HALF_LONG_BITS 16
-#define Kara_flag 5
+#define Kara_flag 3
 
 #define SIGN_ZERO 0
 #define SIGN_POSITIVE 1
@@ -56,15 +60,17 @@ S32 bn_SHL(U32* A, U32* B, U32 Len, U32 Num);
 S32 PF_Print(PF A);
 
 // basic function
+S32 String_set(char* A, U32* B,U32 C);
 S32 PF_copy(PF* A, PF* B);
 S32 PF_abs_compare(PF* A, PF* B);
 S32 PF_compare(PF* A, PF* B);
-S32 PF_Split(PF* A, U32* X, U32 len);
-S32 PF_SHR(PF* A, U32 Num);
+S32 PF_Split(PF* X_1, PF* X_0, PF* X, U32 len);
+S32 PF_SHR(PF* A,PF* B, U32 Num);
 S32 PF_SHL(PF* A, U32 Num);
 
 // operation function
-S32 ADD_abs(PF* A, PF* B, PF* C);
+U32 ADD_ABc(U32 A, U32 B, U32 c, U32* C_j);
+S32 ADDC(PF* A, PF* B, PF* C);
 S32 ADD(PF* A, PF* B, PF* C);
 S32 SUB_abs(PF* A, PF* B, PF* C);
 S32 SUB(PF* A, PF* B, PF* C);

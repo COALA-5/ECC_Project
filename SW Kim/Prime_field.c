@@ -1,7 +1,12 @@
 #include "Prime_field.h"
 #include <stdlib.h>
+#include <string.h>
 
+U32 bn_Zero[2] = { 0, 0 };
+U32 bn_One[2] = { 1, 0 };
 
+PF PF_ZERO = { SIGN_ZERO,bn_Zero,0 };
+PF PF_ONE = { SIGN_POSITIVE,bn_One,1 };
 
 /*
 	Print Function
@@ -12,6 +17,9 @@ S32 PF_Print(PF A)
 	if (A.len == 0 && A.data[0] == 0) {
 		printf("0x0");
 		return 0;
+	}
+	if (A.sign == SIGN_NEGATIVE) {
+		printf("-");
 	}
 	S32 i;
 
@@ -25,22 +33,21 @@ S32 PF_Print(PF A)
 /*
 	Basic Function
 */
-
+//A를 B에 복사
 S32 PF_copy(PF* A, PF* B)
 {
-
-	S32 i;
 
 	if (PF_IS_ZERO(*A)) {
 		MAKE_ZERO(*B);
 		return 0;
 	}
-	for (i = 0; i < A->len; i++) {
-		B->data[i] = A->data[i];
-	}
+
+	memcpy(B->data, A->data, sizeof(U32) * A->len );
 	B->sign = A->sign;
 	B->len = A->len;
-	return i;
+
+	return 0;
+
 }
 
 S32 PF_abs_compare(PF* A, PF* B)
@@ -61,11 +68,15 @@ S32 PF_abs_compare(PF* A, PF* B)
 	}
 	return 0;
 }
-
+/*
+	A가 더 크면 양수 반환
+	같으면 0 반환
+	B가 더 크면 음수 반환
+*/
 S32 PF_compare(PF* A, PF* B)
 {
 	if (A->sign == B->sign) {
-		if (A->sign == 0)
+		if (A->sign == SIGN_ZERO)
 			return 0;
 		else
 			return (A->sign) * PF_abs_compare(A, B);
@@ -75,11 +86,99 @@ S32 PF_compare(PF* A, PF* B)
 	}
 }
 
-S32 PF_Split(PF *A, U32* X, U32 len) {
-	
-	memcpy(A->data, X, len * BYTE);
+U32 chartohex(char c) {
+	unsigned int n = (unsigned int)c - 0x30;
+	//case of [0-9]
+	if (n < 10)
+		return (int)n;
+	n -= 0x11;
+	//case of [A-F]
+	if (n < 6)
+		return (int)n + 10;
+	n -= 0x20;
+	//case of [a-f]
+	if (n < 6)
+		return (int)n + 10;
+	return -1;
+}
 
-	A->len = len;
+S32 String_set(char* string, U32* data, U32* len) {
+
+	U32 string_len = strlen(string);
+	*len = string_len / 8;
+
+	int cnt = strlen(string) - 8;
+	int i = 0;
+
+	while (*len > i) {
+		data[i] = chartohex(string[cnt]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+1]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+2]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+3]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+4]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+5]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+6]); data[i] <<= 4;
+		data[i] |= chartohex(string[cnt+7]);
+
+		cnt -= 8;
+		i++;
+	}
+
+	U32 last_data = string_len % 8;
+	U32 j = 0;
+
+	if (last_data != 0) {
+		(*len)++;
+		while (1) {
+			if (last_data == j+1) {
+				data[i] |= chartohex(string[j]);
+				break;
+			}
+			else {
+				data[i] |= chartohex(string[j]); data[i] <<= 4;
+				j++;
+			}
+		}
+
+	}
+
+
+}
+
+S32 PF_Split(PF *X_1,PF *X_0, PF *X, U32 len) {
+	
+	if (X->len > len) {
+
+		memcpy(X_0->data, X->data, sizeof(U32) * len);
+		memcpy(X_1->data, X->data + len, sizeof(U32) * (X->len - len));
+
+		X_0->len = len;
+		X_1->len = X->len - len;
+
+		X_1->sign = SIGN_POSITIVE;
+		X_0->sign = SIGN_POSITIVE;
+
+	}
+	else if (X->len < len) {
+
+		memcpy(X_0->data, X->data, sizeof(U32) * len );
+
+		X_0->len = len;
+
+		X_1->sign = SIGN_ZERO;
+		X_0->sign = SIGN_POSITIVE;
+
+	}
+	else {
+
+		memcpy(X_0->data, X->data, sizeof(U32) * len);
+
+		X_0->len = len;
+
+		X_1->sign = SIGN_ZERO;
+		X_0->sign = SIGN_POSITIVE;
+
+	}
 
 	return 0;
 }
@@ -114,14 +213,34 @@ S32 bn_SHL(U32* A, U32* B, U32 Len, U32 Num) {
 	return ret;
 }
 
-S32 PF_SHR(PF* A, U32 Num) {
+S32 PF_SHR(PF* A,PF* B, U32 Num) {
 
-	if (A->len == 0 && A->data[0] == 0) {
+	if (PF_IS_ZERO(*A)) {
 		return 0;
 	}
 
-	bn_SHR(A->data, A->data, A->len, Num);
+	U32 i, t;
+
+	t = Num / Bits;
+	if (t) {
+		if (t >= B->len) {
+			PF_copy(&PF_ZERO, A);
+		}
+		for (i = 0; i < B->len - t; i++)
+			B->data[i] = A->data[i + t];
+		B->len = A->len - t;
+	}
+	else
+		PF_copy(B,A);
+
+	t = Num % Bits;
+	if (t) {
+		bn_SHR(A->data, A->data, A->len, t);
+	}
+	
 	CLR_UPPER_ZERO(*A);
+
+	return 0;
 
 }
 
@@ -136,141 +255,196 @@ S32 PF_SHL(PF* A, U32 Num) {
 	Operation Function
 */
 
-S32 ADD_abs(PF* A, PF* B, PF* C)
-{
-	U32 carry,tmp;
-	S32 i, A_len, B_len;
-	U32 *A_data, *B_data, *C_data;
-
-	A_len = A->len;
-	B_len = B->len;
-	A_data = A->data;
-	B_data = B->data;
-	C_data = C->data;
-
-	carry = 0;
-	for (i = 0; i < B_len; i++) {
-		tmp = A_data[i];
-		C_data[i] = tmp + B_data[i] + carry;
-		carry = tmp > C_data[i] - carry;
+U32 ADD_ABc(U32 A, U32 B, U32 c, U32* C_j) {
+	U32 c_2 = 0;
+	U32 C = A + B;
+	if (C < A) {
+		c_2 = 1;
 	}
-
-	if (carry) {
-		for (; i < A_len; i++) {
-			tmp = A_data[i];
-			C_data[i] = tmp + carry;
-			carry = (tmp > C_data[i]) ? 1 : 0;
-		}
-		if (carry) {
-			C_data[i] = 1;
-			i++;
-		}
+	C = C + c;
+	if (C < c) {
+		c_2 += 1;
 	}
-	else {
-		for (; i < A_len; i++)
-			C_data[i] = A_data[i];
-	}
-	C->len = i;
-
-	return carry;
+	*C_j = C;
+	return c_2;
 }
 
-S32 SUB_abs(PF* A, PF* B, PF* C)
+S32 ADDC(PF* A, PF* B, PF* C)
 {
-	U32 borrow;
-	S32 i, A_len, B_len;
-	U32* A_data, * B_data, * C_data;
-	borrow = 0;
+	U32 c = 0;					// c : carry
 
-	A_len = A->len;
-	B_len = B->len;
-	A_data = A->data;
-	B_data = B->data;
-	C_data = C->data;
-
-	for (i = 0; i < B_len; i++) {
-		if (borrow) {
-			borrow = A_data[i] <= B_data[i];
-			C_data[i] = A_data[i] - B_data[i] - 1;
-		}
-		else {
-			borrow = A_data[i] < B_data[i];
-			C_data[i] = A_data[i] - B_data[i];
-		}
+	for (int j = 0; j < A->len; j++) {
+		if (j >= B->len)
+			c = ADD_ABc(*(A->data + j), 0, c, C->data + j);
+		else
+			c = ADD_ABc(*(A->data + j), *(B->data + j), c, C->data + j);
 	}
 
-	if (borrow) {
-		for (; A_data[i] == 0; i++) {
-			C_data[i] = A_data[i] - 1;
-			if (i >= A_len - 1)
-				break;
-		}
-		C_data[i] = A_data[i] - 1;
-		i++;
+	if (c == 1) {
+		*(C->data + A->len) = c;
+		C->len = A->len + 1;
 	}
-	if (A->len > i)
-		memcpy((char*)&(C_data[i]), (char*)&(A_data[i]), sizeof(U32) * (A_len - i));
-	
-	C->len = A->len;
-	return borrow;
+	else
+		C->len = A->len;
+
+	return 0;
+
 }
 
 S32 ADD(PF* A, PF* B, PF* C)
 {
-	int carry = 0;
-	U32 sign;
-	sign = A->sign * B->sign;
 
-	if (sign >= 0) {
-		if (A->len >= B->len) {
-			carry = ADD_abs(A, B, C);
-			C->sign = A->sign;
-		}
-		else {
-			carry = ADD_abs(B, A, C);
-			C->sign = B->sign;
-		}
+	PF temp;
+	U32 temp_data[MAX_BUF_LEN] = { 0, };
+	PF_INIT(temp, temp_data, SIGN_ZERO);
+
+	S32 A_sign = A->sign;
+	S32 B_sign = B->sign;
+
+
+	if (PF_IS_ZERO(*A)) {
+		PF_copy(B, &temp);
+	}
+	else if (PF_IS_ZERO(*B)) {
+		PF_copy(A, &temp);
+	}
+	else if (A->sign == SIGN_POSITIVE && B->sign == SIGN_NEGATIVE) {
+		B->sign = SIGN_POSITIVE;
+		SUB(A, B, &temp);
+		B->sign = B_sign;
+	}
+	else if (A->sign == SIGN_NEGATIVE && B->sign == SIGN_POSITIVE) {
+		A->sign = SIGN_POSITIVE;
+		SUB(B, A, &temp);
+		A->sign = A_sign;
+	}
+	else if (A->len >= B->len) {
+		ADDC(A, B, &temp);
+		temp.sign = SIGN_POSITIVE;
 	}
 	else {
-		if ((sign = PF_abs_compare(A, B)) >= 0) {
-			carry = SUB_abs(A, B, C);
-			C->sign = A->sign;
-		}
-		else if (sign < 0) {
-			carry = SUB_abs(B, A, C);
-			C->sign = B->sign;
+		ADDC(B, A, &temp);
+		temp.sign = SIGN_POSITIVE;
+	}
+
+	PF_copy(&temp, C);
+
+	CLR_UPPER_ZERO(*C);
+
+	return 0;
+
+}
+
+S32 SUB_AbB(U32 *A, U32 *B, U32 *C, U32 *b) {
+
+
+	U32 borrow = 0;
+
+	if (*A < *b) {
+		*C = 0x100000000 - *b + *A;
+	}
+	else {
+		*C = *A - *b;
+	}
+
+	if (*A < *b)
+		borrow = 1;
+
+	if (*C < *B)
+		borrow += 1;
+
+	if (*C < *B) {
+		*C =0x100000000 - *B + *C;
+	}
+	else {
+		*C = *C - *B;
+	}
+
+
+	*b = borrow;
+
+}
+
+S32 SUB_abs(PF* A, PF* B, PF* C)
+{
+
+	PF temp;
+	U32 temp_data[MAX_BUF_LEN] = { 0, };
+	PF_INIT(temp, temp_data, SIGN_ZERO);
+
+	int i = 0;
+
+	for (i = B->len; i < A->len; i++) {
+		B->data[i] = 0;
+	}
+
+	U32 b = 0;
+
+	for (i = 0; i < A->len; i++) {
+		SUB_AbB(&A->data[i], &B->data[i], &temp.data[i], &b);
+	}
+
+	temp.len = A->len;
+
+	for (i = A->len-1 ; i < 0; i++) {
+		if (temp.data[i] == 0) {
+			temp.len = i;
+			break;
 		}
 	}
 
-	return carry;
+	PF_copy(&temp, C);
+
+	return 0;
+
 }
 
 S32 SUB(PF* A, PF* B, PF* C)
 {
-	U32 borrow = 0;
-	S32 sign;
+	S32 cmp = PF_compare(A, B);
+	S32 A_sign = A->sign;
+	S32 B_sign = B->sign;
 
-	sign = A->sign * B->sign;
-
-	if (sign <= 0) {
-		if (A->len >= B->len)
-			borrow = ADD_abs(A, B, C);
-		else
-			borrow = ADD_abs(B, A, C);
-		C->sign = (A->sign != 0) ? A->sign : B->sign;
+	if (PF_IS_ZERO(*A) == TRUE) {
+		PF_copy(B, C);
+		C->sign = B->sign * SIGN_NEGATIVE;
+	}
+	else if (PF_IS_ZERO(*B) == TRUE) {
+		PF_copy(A, C);
+		C->sign = A->sign;
+	}
+	else if (cmp == 0) {
+		C->len = 0;
+		C->sign = SIGN_ZERO;
+		C->data[0] = 0;
+	}
+	else if (A->sign == SIGN_POSITIVE && B->sign == SIGN_POSITIVE && cmp >= 0) {
+		SUB_abs(A, B, C);
+		C->sign = SIGN_POSITIVE;
+	}
+	else if (A->sign == SIGN_POSITIVE && B->sign == SIGN_POSITIVE && cmp < 0) {
+		SUB_abs(B, A, C);
+		C->sign = SIGN_NEGATIVE;
+	}
+	else if (A->sign == SIGN_NEGATIVE && B->sign == SIGN_NEGATIVE && cmp >= 0) {
+		SUB_abs(B, A, C);
+		C->sign = SIGN_POSITIVE;
+	}
+	else if (A->sign == SIGN_NEGATIVE && B->sign == SIGN_NEGATIVE && cmp < 0) {
+		SUB_abs(A, B, C);
+		C->sign = SIGN_NEGATIVE;
+	}
+	else if (A->sign == SIGN_POSITIVE && B->sign == SIGN_NEGATIVE) {
+		B->sign = SIGN_POSITIVE;
+		ADD(A, B, C);
+		B->sign = B_sign;
 	}
 	else {
-		if (PF_abs_compare(A, B) >= 0) {
-			borrow = SUB_abs(A, B, C);
-			C->sign = A->sign;
-		}
-		else {
-			borrow = SUB_abs(B, A, C);
-			C->sign = -B->sign;
-		}
+		A->sign = SIGN_POSITIVE;
+		ADD(A, B, C);
+		A->sign = A_sign;
+		C->sign = SIGN_NEGATIVE;
 	}
-	CLR_UPPER_ZERO(*C)
-	return borrow;
 }
 
 S32 MUL_AB(U32 A, U32 B, U32* C, U32* D)
@@ -309,7 +483,6 @@ S32 MUL_abs(PF* A, PF* B, PF* C) {
 	A_len = A->len;
 	B_len = B->len;
 
-
 	A_data = A->data;
 	B_data = B->data;
 	C_data = C->data;
@@ -341,80 +514,64 @@ S32 MUL_Kara(PF* A, PF* B, PF* C) {
 		return 0;
 	}
 
-	U32 L,LW;
-	PF A_1, A_0, B_1, B_0;
-	U32 A_1_data[MAX_ARR_LEN] = { 0, };
-	U32 A_0_data[MAX_ARR_LEN] = { 0, };
-	U32 B_1_data[MAX_ARR_LEN] = { 0, };
-	U32 B_0_data[MAX_ARR_LEN] = { 0, };
-	PF_INIT(A_1, A_1_data, SIGN_POSITIVE);
-	PF_INIT(A_0, A_0_data, SIGN_POSITIVE);
-	PF_INIT(B_1, B_1_data, SIGN_POSITIVE);
-	PF_INIT(B_0, B_0_data, SIGN_POSITIVE);
+	/*=================================================================================*/
 
-	L = MAX(A->len, B->len) >> 1;
-	LW = L << 5;
+	U32 l = (MAX(A->len, B->len) + 1) >> 1;
 
-	PF_Split(&A_1, A->data + L, A->len - L);
-	CLR_UPPER_ZERO(A_1);
-	PF_Split(&A_0, A->data, L);
-	CLR_UPPER_ZERO(A_0);
-	PF_Split(&B_1, B->data + L, B->len - L);
-	CLR_UPPER_ZERO(B_1);
-	PF_Split(&B_0, B->data, L);
-	CLR_UPPER_ZERO(B_0);
+	PF X_0,X_1,Y_0,Y_1;
+	U32 X_0_data[MAX_ARR_LEN] = { 0, };
+	U32 X_1_data[MAX_ARR_LEN] = { 0, };
+	U32 Y_0_data[MAX_ARR_LEN] = { 0, };
+	U32 Y_1_data[MAX_ARR_LEN] = { 0, };
+	PF_INIT(X_0, X_0_data, SIGN_ZERO);
+	PF_INIT(X_1, X_1_data, SIGN_ZERO);
+	PF_INIT(Y_0, Y_0_data, SIGN_ZERO);
+	PF_INIT(Y_1, Y_1_data, SIGN_ZERO);
 
+	PF_Split(&X_1, &X_0, A, l);
+	PF_Split(&Y_1, &Y_0, B, l);
 
-	PF T_1, T_0;
-	U32 T_1_data[MAX_ARR_LEN] = { 0, };
-	U32 T_0_data[MAX_ARR_LEN] = { 0, };
-	PF_INIT(T_1, T_1_data, SIGN_ZERO);
-	PF_INIT(T_0, T_0_data, SIGN_ZERO);
-	T_1.len = 0;
-	T_0.len = 0;
+	/*=================================================================================*/
 
-	MUL_Kara(&A_1, &B_1, &T_1);
-	MUL_Kara(&A_0, &B_0, &T_0);
+	PF L, H;
+	U32 L_data[MAX_ARR_LEN] = { 0, };
+	U32 H_data[MAX_ARR_LEN] = { 0, };
+	PF_INIT(L, L_data, SIGN_ZERO);
+	PF_INIT(H, H_data, SIGN_ZERO);
+	MUL_Kara(&X_0, &Y_0, &L);
+	MUL_Kara(&X_1, &Y_1, &H);
+
+	/*=================================================================================*/
+
+	PF M;
+	U32 M_data[MAX_ARR_LEN] = { 0, };
+	PF_INIT(M, M_data, SIGN_ZERO);
+
+	S32 temp = 0;
 	
-	CLR_UPPER_ZERO(T_1);
-	CLR_UPPER_ZERO(T_0);
+	SUB(&X_1, &X_0, &X_1);
+	SUB(&Y_1, &Y_0, &Y_1);
 
-	memcpy(C->data + (L << 1), T_1.data, T_1.len << 2);
-	memcpy(C->data, T_0.data, T_0.len << 2);
-	C->len = (L << 1) + T_1.len;
-	PF S_1, S_0;
-	U32 S_1_data[MAX_ARR_LEN] = { 0, };
-	U32 S_0_data[MAX_ARR_LEN] = { 0, };
-	PF_INIT(S_1, S_1_data, SIGN_POSITIVE);
-	PF_INIT(S_0, S_0_data, SIGN_POSITIVE);
+	MUL_Kara(&X_1, &Y_1, &M);
+	M.sign = X_1.sign * Y_1.sign;
 
-	SUB(&A_0, &A_1, &S_1);
-	SUB(&B_1, &B_0, &S_0);
+	/*=================================================================================*/
 
-	PF S;
-	U32 S_data[MAX_ARR_LEN] = { 0, };
-	PF_INIT(S, S_data, SIGN_POSITIVE);
+	PF_copy(&L, C);
 
-	MUL(&S_1, &S_0, &S);
-	CLR_UPPER_ZERO(S);
+	ADD(&H, &L, &L);
 
-	S.sign = ((S_1.sign ^ S_0.sign) == 0) ? SIGN_POSITIVE : SIGN_NEGATIVE;
+	SUB(&L, &M, &M);
 
+	memcpy(L.data + l, M.data, sizeof(U32) * M.len);	L.len = M.len + l;
+	memset(L.data, 0, sizeof(U32) * l);
 
-	ADD(&S, &T_1, &S);
-	ADD(&S, &T_0, &S);
+	ADD(C, &L, C);
 
-	U32 S_temp_array[MAX_ARR_LEN] = { 0, };
-	memcpy(S_temp_array, S.data, S.len << 2);
-	memset(S.data, 0, S.len << 2);
-	memcpy(S.data + L, S_temp_array, S.len << 2);
-	S.len += L;
-	CLR_UPPER_ZERO(S);
+	memcpy(H.data + (2 * l), H.data, sizeof(U32) * H.len);	H.len += (2 * l);
+	memset(H.data, 0, sizeof(U32) * (2 * l));
 
-	ADD(C, &S, C);
-	CLR_UPPER_ZERO(*C);
-
-	C->sign = ((A->sign ^ B->sign) == 0) ? SIGN_POSITIVE : SIGN_NEGATIVE;
+	ADD(C, &H, C);
 
 	return 0;
 
@@ -519,7 +676,10 @@ S32 SQR(PF A, PF* C) {
 
 }
 
+
 S32 Binary_Inv(PF* A, PF* B, PF* Prime) {
+
+	U32 flag = 0;
 
 	PF U, V;
 	U32 U_data[MAX_ARR_LEN] = { 0, };
@@ -529,6 +689,8 @@ S32 Binary_Inv(PF* A, PF* B, PF* Prime) {
 	PF_copy(A, &U);
 	PF_copy(Prime, &V);
 
+	/*=================================================================================*/
+
 	PF X_1, X_2;
 	U32 X_1_data[MAX_ARR_LEN] = { 0, };
 	U32 X_2_data[MAX_ARR_LEN] = { 0, };
@@ -537,86 +699,93 @@ S32 Binary_Inv(PF* A, PF* B, PF* Prime) {
 	X_1.len = 1;
 	X_1.data[0] = 1;
 
-	printf("\nU = ");
-	PF_Print(U);
-	printf("\nV = ");
-	PF_Print(V);
+	/*=================================================================================*/
 
-	printf("\nX_1 = ");
-	PF_Print(X_1);
-	printf("\nX_2 = ");
-	PF_Print(X_2);
+	while (PF_IS_ONE(U) == FALSE && PF_IS_ONE(V) == FALSE) {
 
-	while (!PF_IS_ZERO(U) && !PF_IS_ZERO(V)) {
+		/*=================================================================================*/
 
-		while (isEven(U.data)) {
+		while (isEven(U.data) == TRUE) {
 
-			PF_SHR(&U, 1);
+			PF_SHR(&U, &U, 1);
 
-			printf("\nU = ");
-			PF_Print(U);
+			if (isEven(X_1.data) == TRUE) {
 
-			if (isEven(X_1.data)) {
-
-				PF_SHR(&X_1, 1);
-
-				printf("\nX_1 = ");
-				PF_Print(X_1);
+				PF_SHR(&X_1, &X_1, 1);
 
 			}
 			else {
 
 				ADD(&X_1, Prime, &X_1);
-				
-				printf("\nX_1 = ");
-				PF_Print(X_1);
-				
-				PF_SHR(&X_1, 1);
 
-				printf("\nX_1 = ");
-				PF_Print(X_1);
+				PF_SHR(&X_1, &X_1, 1);
+
 
 			}
 		}
-		while (isOdd(V.data)) {
 
-			PF_SHR(&V, 1);
+		/*=================================================================================*/
 
-			printf("\nV = ");
-			PF_Print(V);
+		while (isEven(V.data) == TRUE) {
 
-			if (isEven(X_2.data)) {
+			PF_SHR(&V, &V, 1);
 
-				PF_SHR(&X_2, 1);
+			if (isEven(X_2.data) == TRUE) {
+
+
+				PF_SHR(&X_2, &X_2, 1);
+
 
 			}
 			else {
+
 				ADD(&X_2, Prime, &X_2);
-				PF_SHR(&X_2, 1);
+
+				PF_SHR(&X_2, &X_2, 1);
 			}
 		}
-		if (!(PF_compare(&U, &V) < 0)) {
+		if (PF_compare(&U, &V) >= 0) {
+
+
 			SUB(&U, &V, &U);
+
 			SUB(&X_1, &X_2, &X_1);
+
 		}
 		else {
 			SUB(&V, &U, &V);
+
 			SUB(&X_2, &X_1, &X_2);
 		}
 	}
-	if (PF_IS_ONE(U)) {
+
+	/*=================================================================================*/
+
+	if (PF_IS_ONE(U) == TRUE) {
+
+		printf("\nX_1 = ");
+		PF_Print(X_1);
+
 		PF_256_MOD(&X_1);
-		PF_copy(&X_1,B);
+
+		printf("\nX_1 = ");
+		PF_Print(X_1);
+
+		PF_copy(&X_1, B);
 		return 0;
 	}
 	else {
+		printf("\nX_2 = ");
+		PF_Print(X_2);
+
 		PF_256_MOD(&X_2);
 		printf("\nX_2 = ");
 		PF_Print(X_2);
-		PF_copy(&X_2,B);
+		PF_copy(&X_2, B);
 		return 0;
 	}
 }
+
 
 /*
 	Prime Field Operation Function
@@ -625,8 +794,8 @@ S32 Binary_Inv(PF* A, PF* B, PF* Prime) {
 S32 PF_ADD(PF* A, PF* B, PF* Prime, PF* C)
 {
 	ADD(A, B, C);
-	if (PF_abs_compare(A, Prime) >= 0)
-		SUB_abs(A, Prime, A);
+	while (PF_abs_compare(A, Prime) >= 0)
+		SUB(A, Prime, A);
 	CLR_UPPER_ZERO(*C);
 
 	return 0;
@@ -635,7 +804,7 @@ S32 PF_ADD(PF* A, PF* B, PF* Prime, PF* C)
 S32 PF_SUB(PF* A, PF* B, PF* Prime, PF* C)
 {
 	SUB(A, B, C);
-	if (C->sign == SIGN_NEGATIVE)
+	while (C->sign == SIGN_NEGATIVE)
 		ADD(C, Prime, C);
 
 	return 0;
@@ -678,10 +847,21 @@ static U32 P_256[5][8] = {
 
 S32 PF_256_MOD(PF* A) {
 
+
+
 	PF P;
-	U32 P_data = { 0, };
+	U32 P_data[8] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF };
 	PF_INIT(P, P_data, SIGN_POSITIVE);
 	P.len = 8;
+
+	while (A->sign == SIGN_NEGATIVE) {
+		ADD(A, &P, A);
+		if (A->sign == SIGN_POSITIVE) {
+			return 0;
+		}
+	}
+
+
 
 	U32 A_len;
 	U32* A_data;
@@ -712,30 +892,17 @@ S32 PF_256_MOD(PF* A) {
 	PF_INIT(S_8, S_8_data, SIGN_POSITIVE); S_8.len = 8;
 	PF_INIT(S_9, S_9_data, SIGN_POSITIVE); S_9.len = 8;
 
-	carry += ADD(&S_2, &S_2, A);
-	carry += ADD(A, &S_1, A);
-	carry += ADD(A, &S_3, A);
-	carry += ADD(A, &S_3, A);
-	carry += ADD(A, &S_4, A);
-	carry += ADD(A, &S_5, A);
+	PF_ADD(&S_2, &S_2, &P, A);
+	PF_ADD(A, &S_1, &P, A);
+	PF_ADD(A, &S_3, &P, A);
+	PF_ADD(A, &S_3, &P, A);
+	PF_ADD(A, &S_4, &P, A);	
+	PF_ADD(A, &S_5, &P, A);
 
-	carry -= SUB(A, &S_6, A);
-	carry -= SUB(A, &S_7, A);
-	carry -= SUB(A, &S_8, A);
-	carry -= SUB(A, &S_9, A);
-
-	if (carry > 0) {
-
-		P.data = P_256[carry-1];
-		SUB(A, &P, A);
-
-	}
-	else if (carry < 0 && A->sign == SIGN_NEGATIVE) {
-
-		P.data = P_256[~carry];
-		ADD(A, &P, A);
-
-	}
+	PF_SUB(A, &S_6, &P, A);	
+	PF_SUB(A, &S_7, &P, A);
+	PF_SUB(A, &S_8, &P, A);	
+	PF_SUB(A, &S_9, &P, A);	
 
 
 	CLR_UPPER_ZERO(*A);
